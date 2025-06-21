@@ -17,12 +17,34 @@ Preprocess the Geometry3k dataset to parquet format
 
 import argparse
 import os
+from typing import List, Tuple
 
 import datasets
+from datasets import DatasetInfo, SplitInfo, get_dataset_config_info, get_dataset_config_names
 
 from verl.utils.hdfs_io import copy, makedirs
 
 dataset_names = ["GEOQA_R1V_Train_8K", "geometry3k"]
+
+
+def get_flattened_dataset(data_source) -> Tuple[List[datasets.Dataset], List[Tuple[DatasetInfo, SplitInfo]]]:
+    """
+    Load and flatten the datasets from the specified data source.
+    """
+    dataset_list = []
+    datainfolist = []
+    subset_list = get_dataset_config_names(data_source)
+    for subset in subset_list:
+        data_info = get_dataset_config_info(data_source, subset)
+        splits_info = data_info.splits
+        for split_name, split_info in splits_info.items():
+            if subset in dataset_names:
+                dataset = datasets.load_dataset(data_source, subset, split=split_name)
+                dataset_list.append(dataset)
+                datainfolist.append((data_info, split_info))
+
+    return dataset_list, datainfolist
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -31,12 +53,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    data_source = "lmms-lab/Open-MM-Recipe-Image"
-
-    dataset_list = []
-    for dataset_name in dataset_names:
-        dataset = datasets.load_dataset(data_source, dataset_name, split="train")
-        dataset_list.append(dataset)
+    data_source = "luodian/think-in-modality"
+    dataset_list, datainfolist = get_flattened_dataset(data_source)
     dataset = datasets.concatenate_datasets(dataset_list)
 
     train_dataset = dataset
@@ -53,6 +71,8 @@ if __name__ == "__main__":
             prompt = problem + " " + instruction_following
             answer = example.pop("answer")
             images = example.pop("images")
+            if len(images) > 0 and "<image>" not in prompt:
+                prompt = "<image>" * len(images) + prompt
 
             data = {
                 "data_source": data_source,
