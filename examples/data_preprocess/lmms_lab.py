@@ -21,10 +21,11 @@ from typing import List, Tuple
 
 import datasets
 from datasets import DatasetInfo, SplitInfo, get_dataset_config_info, get_dataset_config_names
+from PIL import Image
 
 from verl.utils.hdfs_io import copy, makedirs
 
-dataset_names = ["GEOQA_R1V_Train_8K", "geometry3k"]
+dataset_names = ["s1k-1.1", "geometry3k"]
 
 
 def get_flattened_dataset(data_source) -> Tuple[List[datasets.Dataset], List[Tuple[DatasetInfo, SplitInfo]]]:
@@ -46,14 +47,23 @@ def get_flattened_dataset(data_source) -> Tuple[List[datasets.Dataset], List[Tup
     return dataset_list, datainfolist
 
 
+def get_blank_image():
+    """
+    Create a blank image to be used as a placeholder.
+    """
+    blank_image = Image.new("RGB", (28, 28), color=(255, 255, 255))
+    return blank_image
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--local_dir", default="~/data/open_mm_recipe_image")
     parser.add_argument("--hdfs_dir", default=None)
+    parser.add_argument("--data_source", default="luodian/think-in-modality", help="The data source to load the dataset from")
 
     args = parser.parse_args()
 
-    data_source = "luodian/think-in-modality"
+    data_source = args.data_source
     dataset_list, datainfolist = get_flattened_dataset(data_source)
     dataset = datasets.concatenate_datasets(dataset_list)
 
@@ -73,6 +83,9 @@ if __name__ == "__main__":
             images = example.pop("images")
             if len(images) > 0 and "<image>" not in prompt:
                 prompt = "<image>" * len(images) + prompt
+            elif len(images) == 0:
+                images = [get_blank_image()]
+                prompt = "<image>" + prompt
 
             data = {
                 "data_source": data_source,

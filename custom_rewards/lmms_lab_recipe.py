@@ -18,6 +18,8 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, sand
         from verl.utils.reward_score import geo3k
 
         res = geo3k.compute_score(solution_str, ground_truth)
+    else:
+        res = 0.0  # Default score if no specific scoring function is implemented
 
     if isinstance(res, dict):
         return res
